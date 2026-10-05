@@ -1,0 +1,11 @@
+{
+  "name": "midnight",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "CS480 Midnight reminder Pi extension lab",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "test": "node --test"
+  }
+}
