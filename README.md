@@ -1,7 +1,7 @@
 # Midnight
 480HW3_Midnight
 
-A Pi extension lab developed from scratch by a pair of students using one Pi coding agent. No instructor starter repository was supplied.
+A Pi extension lab developed from scratch using one Pi coding agent.
 
 ## Acceptance criteria
 
@@ -55,19 +55,19 @@ All tests run without an interactive session. The policy and controller tests us
 
 ### Interactive demonstration — preview verified October 5, 2026
 
-We loaded the extension interactively and verified `/bedtime-test`:
+I loaded the extension interactively and verified `/bedtime-test`:
 
 ```bash
 # Configure Pi model credentials first
 pi --extension ./src/reminder.ts
 ```
 
-Inside Pi we typed `/bedtime-test` on October 5, 2026 and Pi displayed:
+Inside Pi I typed `/bedtime-test` on October 5, 2026 and Pi displayed:
 > Warning: It's late! Save your work and get some sleep.
 
 This confirms the command wiring and notification rendering.
 
-We did **not** manually verify automatic midnight delivery or shutdown cleanup during this session. Those behaviors are covered by the 28 automated tests.
+I did **not** manually verify automatic midnight delivery or shutdown cleanup during this session. Those behaviors are covered by the 28 automated tests.
 
 ### To attempt full automatic verification
 
