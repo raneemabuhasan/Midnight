@@ -190,6 +190,20 @@ describe("Extension wiring (fake Pi API)", () => {
     });
   });
 
+  it("rpc startup creates exactly one timer", () => {
+    const fakePi = makeFakePi();
+    extensionFactory(fakePi);
+
+    const noon = makeDate(2024, 5, 15, 12, 0);
+    const fakeCtx = makeFakeContext("rpc", noon);
+    const startHandlers = (fakePi as any).getEventHandlers("session_start");
+
+    withFakeGlobals(fakeCtx.timers, noon, () => {
+      startHandlers[0]!({ type: "session_start", reason: "startup" }, fakeCtx);
+      assert.strictEqual(fakeCtx.timers.count(), 1, "rpc mode is dialog-capable, so one periodic timer is expected");
+    });
+  });
+
   it("preview after shutdown does not notify", async () => {
     const fakePi = makeFakePi();
     extensionFactory(fakePi);
