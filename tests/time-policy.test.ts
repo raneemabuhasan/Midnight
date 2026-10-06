@@ -1,19 +1,25 @@
 import { describe, it } from "node:test";
 import assert from "node:assert";
-import { shouldRemind } from "../src/time-policy.ts";
+import { localDateKey, shouldRemind } from "../src/time-policy.ts";
 
 /**
  * Helper to build a simulated local Date.
  * month is 0-based (0 = January, 11 = December).
  */
-function makeDate(year, month, day, hour, minute) {
+function makeDate(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number,
+): Date {
   return new Date(year, month, day, hour, minute, 0, 0);
 }
 
 /**
  * Helper to build an ISO date string YYYY-MM-DD from a Date.
  */
-function toDateString(date) {
+function toDateString(date: Date): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
@@ -91,6 +97,34 @@ describe("shouldRemind", () => {
       result,
       true,
       "year boundary should be treated as a new date"
+    );
+  });
+});
+
+describe("localDateKey", () => {
+  it("formats dates either side of a month boundary", () => {
+    assert.strictEqual(
+      localDateKey(makeDate(2024, 5, 30, 2, 0)),
+      "2024-06-30",
+      "last day of June"
+    );
+    assert.strictEqual(
+      localDateKey(makeDate(2024, 6, 1, 2, 0)),
+      "2024-07-01",
+      "first day of July, month and day zero-padded"
+    );
+  });
+
+  it("formats dates either side of a year boundary", () => {
+    assert.strictEqual(
+      localDateKey(makeDate(2024, 11, 31, 23, 59)),
+      "2024-12-31",
+      "last day of 2024"
+    );
+    assert.strictEqual(
+      localDateKey(makeDate(2025, 0, 1, 0, 0)),
+      "2025-01-01",
+      "first day of 2025, month and day zero-padded"
     );
   });
 });

@@ -96,7 +96,7 @@ function withFakeGlobals<T>(fakeTimers: ReturnType<typeof makeFakeTimers>, fixed
       if (args.length === 0) {
         super(fixedTime);
       } else {
-        super(...args);
+        super(...(args as [any]));
       }
     }
   };
