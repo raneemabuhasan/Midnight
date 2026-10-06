@@ -6,7 +6,7 @@ import { ReminderController } from "./reminder-controller.ts";
  *
  * - Registers /bedtime-test command.
  * - Subscribes to session_start and session_shutdown.
- * - Only creates timers in TUI (interactive) mode.
+ * - Only creates timers when dialog-capable UI is available (TUI and RPC modes).
  * - Does not start any timer in the factory; defers to session_start event.
  * - Clear controller reference on shutdown so old context is not retained after reload.
  */
@@ -24,7 +24,10 @@ export default function extensionFactory(pi: ExtensionAPI) {
 
   // Start on session_start — Pi docs say not to start timers in the factory.
   pi.on("session_start", (_event, ctx: ExtensionContext) => {
-    const isTui = ctx.mode === "tui";
+    // ctx.hasUI is true whenever dialog-capable UI exists (TUI and RPC),
+    // which is exactly when ctx.ui.notify can deliver the reminder.
+    // ctx.mode === "tui" would be the guard for terminal-only custom components.
+    const hasDialogUI = ctx.hasUI;
 
     // Defensive: if a controller exists from a prior session_start,
     // shut it down before creating a new one (same-instance reload protection).
@@ -39,7 +42,7 @@ export default function extensionFactory(pi: ExtensionAPI) {
       notifier: {
         notify: (message, type) => ctx.ui.notify(message, type),
       },
-      isInteractive: isTui,
+      isInteractive: hasDialogUI,
     });
 
     controller.start();
