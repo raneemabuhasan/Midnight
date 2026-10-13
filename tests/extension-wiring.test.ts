@@ -96,7 +96,7 @@ function withFakeGlobals<T>(fakeTimers: ReturnType<typeof makeFakeTimers>, fixed
       if (args.length === 0) {
         super(fixedTime);
       } else {
-        super(...args);
+        super(...(args as [any]));
       }
     }
   };
@@ -187,6 +187,20 @@ describe("Extension wiring (fake Pi API)", () => {
       startHandlers[0]!({ type: "session_start", reason: "startup" }, fakeCtx);
       assert.strictEqual(fakeCtx.timers.count(), 0, "no timer in non-TUI mode");
       assert.strictEqual(fakeCtx.getNotifications().length, 0, "no notification in non-TUI mode");
+    });
+  });
+
+  it("rpc startup creates exactly one timer", () => {
+    const fakePi = makeFakePi();
+    extensionFactory(fakePi);
+
+    const noon = makeDate(2024, 5, 15, 12, 0);
+    const fakeCtx = makeFakeContext("rpc", noon);
+    const startHandlers = (fakePi as any).getEventHandlers("session_start");
+
+    withFakeGlobals(fakeCtx.timers, noon, () => {
+      startHandlers[0]!({ type: "session_start", reason: "startup" }, fakeCtx);
+      assert.strictEqual(fakeCtx.timers.count(), 1, "rpc mode is dialog-capable, so one periodic timer is expected");
     });
   });
 

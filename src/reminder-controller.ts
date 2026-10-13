@@ -1,4 +1,4 @@
-import { shouldRemind } from "./time-policy.ts";
+import { localDateKey, shouldRemind } from "./time-policy.ts";
 
 /**
  * Test-double types for the integration layer's clock, timer system, and notifier.
@@ -15,7 +15,7 @@ export interface TimerSystem {
 }
 
 export interface Notifier {
-  notify(message: string, type?: string): void;
+  notify(message: string, type?: "info" | "warning" | "error"): void;
 }
 
 /**
@@ -114,10 +114,7 @@ export class ReminderController {
   }
 
   private sendReminder(now: Date): void {
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    const day = String(now.getDate()).padStart(2, "0");
-    const today = `${year}-${month}-${day}`;
+    const today = localDateKey(now);
 
     this.notifier.notify("It's late! Save your work and get some sleep.", "warning");
     this.lastReminderDate = today;

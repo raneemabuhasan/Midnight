@@ -104,3 +104,63 @@ Add:
 - One specific point where you disagreed with the agent or each other
 - One assumption you had to look up in the Pi docs yourself (e.g., `session_start` vs factory timer restriction)
 - One thing you would do differently next time
+
+---
+
+## Review pass: the mode guard, typechecking, and reload
+
+### A wrong guard we found by reading the type definitions
+
+`session_start` created the reminder's timer only when `ctx.mode === "tui"`.
+Reading Pi's own type definitions for the extension context showed that this was
+the wrong condition. `mode` is documented as the guard for terminal-only UI such
+as custom components, while `hasUI` is documented as whether dialog-capable UI is
+available, and it is true in both TUI and RPC modes. Because `ctx.ui.notify`
+works in RPC, the `mode` check left the reminder silently dead for every RPC
+session: the timer was never created, so no reminder could ever fire.
+
+We fixed it red-green. First we added a wiring test asserting that an RPC
+session creates exactly one timer; it failed with 0 timers against the expected
+1. Then we changed the guard to `ctx.hasUI` and the test passed. The existing
+non-interactive test still passes, so print and JSON modes remain silent as the
+acceptance criteria require.
+
+The lesson is that reviewing our code against the host's documented type
+definitions, rather than against our own assumptions about what "interactive"
+means, is what surfaced this. The 28 tests we already had all passed with the
+wrong guard in place, because none of them exercised RPC mode.
+
+### The project had no typechecking
+
+The sources are TypeScript, but nothing ever ran a compiler over them. `npm test`
+uses Node's built-in test runner, which strips type annotations and executes the
+code without checking them, so type errors could not fail the build. Adding a
+`typecheck` script and a `tsconfig.json` immediately surfaced a real error, not a
+cosmetic one: `Notifier.notify` declared its second parameter as `type?: string`,
+while Pi's `ctx.ui.notify` accepts only `"info" | "warning" | "error"`. Passing
+our wider type into Pi's narrower one was rejected by the compiler. We narrowed
+the interface to that union. Everything we pass is `"warning"`, so runtime
+behavior is unchanged, but the interface now states the real contract and a typo
+in a notification level would be caught at compile time.
+
+Two type errors in the test helpers were also hidden by the same gap: untyped
+helper parameters in the policy tests, and a spread into the `Date` constructor
+in the wiring tests. Both were annotation-only fixes.
+
+We also noticed the same YYYY-MM-DD string being built in two places, once in
+the policy and once when recording a sent reminder. Two copies of the same date
+arithmetic can drift apart, and "the same local day" is the single idea the
+deduplication rule rests on. We extracted `localDateKey` and now call it from
+both places, with tests covering the month and year boundaries.
+
+### Reload resets the once-per-day state, and we accept that
+
+Reloading the extension destroys the controller, and with it the in-memory
+`lastReminderDate`. A reload inside the late-night window can therefore produce
+a second reminder on the same calendar date. We are accepting this rather than
+adding persistence: Pi treats a reload as a new session, and our acceptance
+criteria already say a new session or reload may remind again. Shutdown clears
+the timer and drops the controller reference, so a reload leaves no stale timer
+or captured session context behind; only the reminder history resets. Making
+deduplication survive a reload would require storing state outside the process,
+which remains outside our chosen scope.

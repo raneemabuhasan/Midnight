@@ -4,8 +4,14 @@
   "private": true,
   "type": "module",
   "description": "CS480 Midnight reminder Pi extension lab",
-  "engines": { "node": ">=24" },
+  "engines": { "node": ">=22" },
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "^1.0.4",
+    "@types/node": "^24.19.1",
+    "typescript": "^7.0.2"
   }
 }
