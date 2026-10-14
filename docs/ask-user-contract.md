@@ -111,15 +111,15 @@ Model-facing text states the status explicitly. For `cancelled` and
 assume a default; the agent identifies what remains undecided rather than
 inventing an answer.
 
-`details` carries `{ question, options, recommendation, status, answer, source,
-agreedWithRecommendation }` so the transcript can be reconstructed and the
-result rendered.
+`details` carries `{ question, options, recommendation, status, answer, source }`
+so the transcript can be reconstructed and the result rendered.
 
-`agreedWithRecommendation` is `true`, `false`, or `null` when no recommendation
-was offered or nothing was answered. It is a record, not a judgement: an answer
-that contradicts the recommendation is returned faithfully and carries no
-warning, hedge, or re-prompt. The human overrules the recommendation by
-definition.
+**An answer that contradicts the recommendation is returned exactly as given**,
+with no warning, hedge, or re-prompt in the model-facing text. The human
+overrules the recommendation by definition. The recommendation is kept in
+`details` so a reviewer can see what was overruled; the tool draws no conclusion
+from the difference and computes no agreement flag, because a recommendation is
+prose and an option label is not.
 
 ## Behavior rules
 
