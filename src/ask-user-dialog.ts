@@ -49,15 +49,92 @@ export interface AskUserDeps {
   ui: AskUserUI;
 }
 
+/** Title of the free-text dialog shown after the custom-answer choice. */
+const CUSTOM_ANSWER_PROMPT = "Your answer";
+
+/** Placeholder inside the free-text dialog. */
+const CUSTOM_ANSWER_PLACEHOLDER = "Describe what you want instead";
+
+function cancelled(): AskUserOutcome {
+  return { status: "cancelled", answer: null, source: null };
+}
+
+function unavailable(): AskUserOutcome {
+  return { status: "unavailable", answer: null, source: null };
+}
+
+/**
+ * Builds the block the human reads above the options: the question, why it
+ * matters, and the recommendation when one was offered.
+ */
+function renderPrompt(question: AskUserQuestion): string {
+  const lines = [question.question, "", question.why];
+  if (question.recommendation) {
+    lines.push("", `Recommended: ${question.recommendation}`);
+  }
+  return lines.join("\n");
+}
+
+/**
+ * Builds one row per option, then the custom-answer row.
+ *
+ * Rows are numbered so that two options whose text is identical still render
+ * distinctly, which keeps the row-to-option mapping unambiguous.
+ */
+function renderRows(question: AskUserQuestion): string[] {
+  const rows = question.options.map(
+    (option, index) => `${index + 1}. ${option.label} \u2014 ${option.tradeoff}`,
+  );
+  rows.push(`${rows.length + 1}. ${CUSTOM_ANSWER_LABEL}`);
+  return rows;
+}
+
 /**
  * Puts one question to the human and reports what came back.
  *
- * W2-1 stub. Returns `unavailable` unconditionally so that the contract tests
- * fail on their assertions rather than on a missing import. W2-2 implements it.
+ * Returns `unavailable` without opening anything when no dialog-capable UI
+ * exists, `cancelled` when the human supplies no decision, and `answered` only
+ * once a human has actually chosen or written something.
+ *
+ * @param question - The single question to put to the human.
+ * @param deps - Injected dialog and availability flag.
+ * @returns The explicit outcome defined in docs/ask-user-contract.md.
  */
 export async function askUser(
-  _question: AskUserQuestion,
-  _deps: AskUserDeps,
+  question: AskUserQuestion,
+  deps: AskUserDeps,
 ): Promise<AskUserOutcome> {
-  return { status: "unavailable", answer: null, source: null };
+  if (!deps.hasUI) {
+    return unavailable();
+  }
+
+  const rows = renderRows(question);
+  const picked = await deps.ui.select(renderPrompt(question), rows);
+
+  // The human dismissed the selector: no decision was supplied.
+  if (picked === undefined) {
+    return cancelled();
+  }
+
+  const index = rows.indexOf(picked);
+
+  if (index >= 0 && index < question.options.length) {
+    return { status: "answered", answer: question.options[index].label, source: "option" };
+  }
+
+  // Anything other than the custom-answer row is a row we never offered.
+  // Treat it as no decision rather than guessing which option was meant.
+  if (index !== rows.length - 1) {
+    return cancelled();
+  }
+
+  const written = await deps.ui.input(CUSTOM_ANSWER_PROMPT, CUSTOM_ANSWER_PLACEHOLDER);
+  const answer = (written ?? "").trim();
+
+  // An empty or whitespace-only answer is not consent to anything.
+  if (answer === "") {
+    return cancelled();
+  }
+
+  return { status: "answered", answer, source: "custom" };
 }
