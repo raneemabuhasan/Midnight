@@ -140,6 +140,24 @@ prose and an option label is not.
 8. Option labels must stay distinguishable to the human after rendering; two
    options that render identically are a defect.
 
+9. "Whitespace" means one class used by both the trim and the emptiness test:
+   the Unicode whitespace `\s` matches, plus U+200B, U+200C, U+200D and U+FEFF.
+   `String.prototype.trim` does not remove the zero-width characters, so a
+   pasted U+200B would otherwise survive as a visually empty answer. Emptiness
+   is tested after the trim.
+10. A dialog that fails to open or throws returns `unavailable`. The human never
+    saw the question, so this is not a decision either.
+11. An aborted turn resolves as `cancelled`. The turn's abort signal is passed to
+    the dialogs, so an abandoned turn does not hold a session open. This is
+    distinct from a timeout and does not contradict the choice below.
+12. In the model-facing text, a custom answer is delimited and labelled as the
+    human's words rather than as part of the tool's own instructions, because
+    `answered` is the branch that carries arbitrary human prose.
+
+Rules 9 to 12 were added at W2-4, from findings in
+`docs/ask-user-review-cases.md`. Rules 9 and 11 fixed reproduced defects; 10 and
+12 closed gaps the specification had left open.
+
 **Our choice, not a requirement:** no timeout and no auto-dismissal. Pi's
 dialogs accept a `timeout` that resolves to `undefined`, which would map to
 `cancelled` and so would not "silently select a default." We still decline it,

@@ -39,14 +39,16 @@ export interface AskUserOutcome {
  * against both the installed Pi (0.87.1) and the published types (1.0.4).
  */
 export interface AskUserUI {
-  select(title: string, options: string[]): Promise<string | undefined>;
-  input(title: string, placeholder?: string): Promise<string | undefined>;
+  select(title: string, options: string[], opts?: { signal?: AbortSignal }): Promise<string | undefined>;
+  input(title: string, placeholder?: string, opts?: { signal?: AbortSignal }): Promise<string | undefined>;
 }
 
 /** Injected dependencies. `hasUI` mirrors Pi's `ctx.hasUI`. */
 export interface AskUserDeps {
   hasUI: boolean;
   ui: AskUserUI;
+  /** Abort signal for the turn, so an abandoned turn does not hang the dialog. */
+  signal?: AbortSignal;
 }
 
 /** Title of the free-text dialog shown after the custom-answer choice. */
@@ -54,6 +56,20 @@ const CUSTOM_ANSWER_PROMPT = "Your answer";
 
 /** Placeholder inside the free-text dialog. */
 const CUSTOM_ANSWER_PLACEHOLDER = "Describe what you want instead";
+
+/**
+ * One whitespace class, used by both the trim and the emptiness test.
+ *
+ * `String.prototype.trim` does not remove zero-width characters, so a pasted
+ * U+200B would otherwise survive as a visually empty "answer".
+ */
+const BLANK = "[\\s\\u200b\\u200c\\u200d\\ufeff]";
+const SURROUNDING_BLANK = new RegExp(`^${BLANK}+|${BLANK}+$`, "gu");
+
+/** Trims surrounding whitespace, including the zero-width characters. */
+function trimBlank(text: string): string {
+  return text.replace(SURROUNDING_BLANK, "");
+}
 
 function cancelled(): AskUserOutcome {
   return { status: "cancelled", answer: null, source: null };
@@ -109,7 +125,14 @@ export async function askUser(
   }
 
   const rows = renderRows(question);
-  const picked = await deps.ui.select(renderPrompt(question), rows);
+
+  let picked: string | undefined;
+  try {
+    picked = await deps.ui.select(renderPrompt(question), rows, { signal: deps.signal });
+  } catch {
+    // The dialog could not be shown. That is not a decision either.
+    return unavailable();
+  }
 
   // The human dismissed the selector: no decision was supplied.
   if (picked === undefined) {
@@ -128,8 +151,16 @@ export async function askUser(
     return cancelled();
   }
 
-  const written = await deps.ui.input(CUSTOM_ANSWER_PROMPT, CUSTOM_ANSWER_PLACEHOLDER);
-  const answer = (written ?? "").trim();
+  let written: string | undefined;
+  try {
+    written = await deps.ui.input(CUSTOM_ANSWER_PROMPT, CUSTOM_ANSWER_PLACEHOLDER, {
+      signal: deps.signal,
+    });
+  } catch {
+    return unavailable();
+  }
+
+  const answer = trimBlank(written ?? "");
 
   // An empty or whitespace-only answer is not consent to anything.
   if (answer === "") {
